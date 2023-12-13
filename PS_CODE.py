@@ -224,7 +224,8 @@ vectorizer = TfidfVectorizer()
 x = vectorizer.fit_transform(documents)
 x = x.T.toarray()
 df = pd.DataFrame(x, index=vectorizer.get_feature_names_out())
-"Enter your query: ")
+
+user_query = input("Enter your query: ")
 
 # Check if boolean operators are present
 boolean_operators = ['AND', 'OR', 'NOT']
