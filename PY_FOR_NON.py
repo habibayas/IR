@@ -10,7 +10,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 dir_containing_files = r'E:\L4S1\IR\projct\files'
 read_files = dir_containing_files
 
-# Tokenize and remove stopwords
 documents = []
 for file_name in natsorted(os.listdir(read_files)):
     with open(os.path.join(read_files, file_name), 'r', encoding='utf-8') as f:
@@ -19,41 +18,31 @@ for file_name in natsorted(os.listdir(read_files)):
         documents.append(" ".join(tokenized_doc))
 print(len(documents))
 
-# Initialize the file no.
 fileno = 1
 
-# Initialize the dictionary.
 pos_index = {}
 
-# For every file.
 for file_name in natsorted(os.listdir(read_files)):
     with open(os.path.join(read_files, file_name), 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Tokenize and remove stopwords
     final_token_list = [term.lower() for term in word_tokenize(content) if term.lower() not in stopwords.words('english')]
 
     for pos, term in enumerate(final_token_list):
         if term in pos_index:
-            # Increment total freq by 1.
             pos_index[term][0] += 1
-            # Check if the term has existed in that DocID before.
             if fileno in pos_index[term][1]:
                 pos_index[term][1][fileno].append(pos)
             else:
                 pos_index[term][1][fileno] = [pos]
         else:
-            # Initialize the list.
             pos_index[term] = [1, {fileno: [pos]}]
 
-    # Increment the file no. counter for document ID mapping
     fileno += 1
 
-# Print the positional index
 for term, data in pos_index.items():
     print(f"{term}: {data}")
 
-# Define the stemming function (assuming you have it defined somewhere in your code)
 def stemming(doc):
     token_docs = word_tokenize(doc)
     stop_words = stopwords.words('english')
@@ -182,7 +171,6 @@ def get_similarity(q, df):
 
     print('\n normalized')
     print(norm_tf_idf.loc[q.split()])
-# Example usage of the modified get_similarity function
 user_query = input("Enter your query: ")
 query_result = query_optimizing(user_query)
 print("Query Result:")
@@ -191,7 +179,6 @@ if query_result:
         print(position)
 else:
     print("No matching documents found.")
-# Print the positional index for the input query
 print("\n Positonal Index for Input Query \n")
 for term in user_query.split():
     term_lower = term.lower()
@@ -200,5 +187,4 @@ for term in user_query.split():
     else:
         print(f"{term_lower}: Term not found in the positional index.")
 
-# Call get_similarity outside the loop, passing the df parameter
 get_similarity(user_query, df)

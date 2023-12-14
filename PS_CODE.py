@@ -6,47 +6,62 @@ import pandas as pd
 import numpy as np
 import math
 from sklearn.feature_extraction.text import TfidfVectorizer
-
+from nltk.stem import PorterStemmer
 dir_containing_files = r'E:\L4S1\IR\projct\files'
 read_files = dir_containing_files
 
+# Tokenize and remove stopwords
 documents = []
+
+porter_stemmer = PorterStemmer()
+
 for file_name in natsorted(os.listdir(read_files)):
     with open(os.path.join(read_files, file_name), 'r', encoding='utf-8') as f:
         content = f.read()
-        tokenized_doc = [term for term in word_tokenize(content) if term.lower() not in stopwords.words('english')]
+        tokenized_doc = [
+            porter_stemmer.stem(term.lower())  # Apply stemming
+            for term in word_tokenize(content) if term.lower() not in stopwords.words('english')
+        ]
         documents.append(" ".join(tokenized_doc))
-print(len(documents))
+# Initialize the file no.
 fileno = 1
 
+# Initialize the dictionary.
 pos_index = {}
+
 
 for file_name in natsorted(os.listdir(read_files)):
     with open(os.path.join(read_files, file_name), 'r', encoding='utf-8') as f:
         content = f.read()
 
-    final_token_list = [term for term in word_tokenize(content) if term.lower() not in stopwords.words('english')]
+    # Tokenize, remove stopwords, and apply stemming
+    final_token_list = [
+        porter_stemmer.stem(term.lower())  # Apply stemming
+        for term in word_tokenize(content) if term.lower() not in stopwords.words('english')
+    ]
 
     for pos, term in enumerate(final_token_list):
         if term in pos_index:
-            
+            # Increment total freq by 1.
             pos_index[term][0] += 1
-            
+            # Check if the term has existed in that DocID before.
             if fileno in pos_index[term][1]:
                 pos_index[term][1][fileno].append(pos)
             else:
                 pos_index[term][1][fileno] = [pos]
         else:
-            
+            # Initialize the list.
             pos_index[term] = [1, {fileno: [pos]}]
 
-    
+    # Increment the file no. counter for document ID mapping
     fileno += 1
 
-
+# Print the positional index
 for term, data in pos_index.items():
     print(f"{term}: {data}")
 
+
+# Define the stemming function (assuming you have it defined somewhere in your code)
 def stemming(doc):
     token_docs = word_tokenize(doc)
     stop_words = stopwords.words('english')
@@ -54,10 +69,10 @@ def stemming(doc):
     stop_words.remove('to')
     stop_words.remove('where')
 
-    prepared_doc = []
-    for term in token_docs:
-        if term not in stop_words:
-            prepared_doc.append(term)
+    prepared_doc = [
+        porter_stemmer.stem(term.lower())  # Apply stemming
+        for term in token_docs if term not in stop_words
+    ]
     return prepared_doc
 def query_optimizing(query):
     lis = [[] for _ in range(10)]
@@ -74,42 +89,55 @@ def query_optimizing(query):
         if len(lst) == len(query.split()):
             positions.append(f'document {pos}')
     return positions
-
 def handle_boolean_operators(query):
-    terms = query.split()
+    # Split the query into terms and operators
+    terms_and_operators = query.split()
 
+    # Initialize result as all documents
     result = set(range(1, 11))
 
+    # Variables to keep track of current operator and term
     current_operator = 'AND'
     current_term = None
 
-    for term in terms:
-        if term.upper() in ['AND', 'OR', 'NOT']:
-            current_operator = term.upper()
+    # Loop through each term and operator in the query
+    for item in terms_and_operators:
+        if item.upper() in ['AND', 'OR', 'NOT']:
+            # Update the current operator
+            current_operator = item.upper()
+            print(f"Operator: {current_operator}")
         else:
-            current_term = term.lower()  
+            # Update the current term
+            current_term = item.lower()  # Convert to lowercase
+            print(f"Term: {current_term}")
 
-            term_documents = set()
+            # Initialize the term_documents set with the current result set
+            term_documents = set(result)
+
+            # Apply the current operator to update the result set
             if current_term in pos_index:
                 term_documents = set(pos_index[current_term][1].keys())
+                print(f"Term Documents: {term_documents}")
 
             if current_operator == 'AND':
                 result = result.intersection(term_documents)
             elif current_operator == 'OR':
                 result = result.union(term_documents)
             elif current_operator == 'NOT':
+                # Exclude documents for the current term
                 result = result.difference(term_documents)
 
+    # Convert the result set to a list for better presentation
     result = list(result)
     result.sort()
 
     return result
 
-
 def get_similarity(q, df, tf, wighted_tf, tdf, tf_idf, doc_len, norm_tf_idf):
     print("query:", q)
     query_terms = q.split()
 
+    # Filter out boolean operators
     query_terms = [term for term in query_terms if term not in ['AND', 'OR', 'NOT']]
 
     q_vec = vectorizer.transform([' '.join(query_terms)]).toarray().reshape(df.shape[0], )
@@ -124,13 +152,14 @@ def get_similarity(q, df, tf, wighted_tf, tdf, tf_idf, doc_len, norm_tf_idf):
             print("similarity value:", score)
             print("the document is ", doc + 1)
 
-
+    # Print other information as before
     print('\n f-raw')
     try:
         print(tf[query_terms])
     except KeyError as e:
         print(f"Error printing f-raw: {e}")
 
+  # Print wighted_tf(1+ log tf)
     print('\n wighted_tf(1+ log tf)')
     for term in query_terms:
         if term in wighted_tf.index:
@@ -138,6 +167,7 @@ def get_similarity(q, df, tf, wighted_tf, tdf, tf_idf, doc_len, norm_tf_idf):
         else:
             print(f"{term}: Term not found in the DataFrame.")
 
+# Print idf (modified to handle missing terms)
     print('\n idf')
     try:
         print(tdf.loc[query_terms])
@@ -209,9 +239,12 @@ x = x.T.toarray()
 df = pd.DataFrame(x, index=vectorizer.get_feature_names_out())
 
 user_query = input("Enter your query: ")
+user_query_stemmed = " ".join([porter_stemmer.stem(term.lower()) for term in user_query.split()])
 
+# Check if boolean operators are present
 boolean_operators = ['AND', 'OR', 'NOT']
 if any(operator in user_query.upper() for operator in boolean_operators):
+    # Handle boolean operators
     boolean_result = handle_boolean_operators(user_query)
     print("Boolean Query Result:")
     if boolean_result:
@@ -220,11 +253,13 @@ if any(operator in user_query.upper() for operator in boolean_operators):
     else:
         print("No matching documents found.")
 else:
+    # Print the positional index for the entire query
     print("\n Positonal Index for Input Query \n")
     for term in user_query.split():
         term_lower = term.lower()
         if term_lower in pos_index:
             print(f"{term_lower}: {pos_index[term_lower]}")
+            # Call get_similarity for each term in the query
             get_similarity(term_lower, df, tf, wighted_tf, tdf, tf_idf, doc_len, norm_tf_idf)
         else:
             print(f"{term_lower}: Term not found in the positional index.")
